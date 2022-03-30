@@ -7,10 +7,10 @@ import numpy
 from numpy.typing import NDArray, ArrayLike
 from pyclipper import scale_to_clipper, scale_from_clipper, PyPolyNode
 
-from .types import connectivity_t, layer_t, contour_t, net_name_t
+from .types import connectivity_t, layer_t, contour_t
 from .poly import poly_contains_points
 from .clipper import union_nonzero, union_evenodd, intersection_evenodd, hier2oriented
-from .tracker import NetsInfo
+from .tracker import NetsInfo, NetName
 from .utils import connectivity2layers
 
 
@@ -36,7 +36,7 @@ def check_connectivity(
 
     nets_info = NetsInfo()
 
-    merge_groups: List[List[net_name_t]] = []
+    merge_groups: List[List[NetName]] = []
     for layer, labels_for_layer in labels.items():
         point_xys = []
         point_names = []
@@ -47,18 +47,18 @@ def check_connectivity(
         for poly in metal_polys[layer]:
             found_nets = label_poly(poly, point_xys, point_names, clipper_scale_factor)
 
-            name: net_name_t
+            name: Optional[str]
             if found_nets:
-                name = found_nets[0]
+                name = NetName(found_nets[0])
             else:
-                name = object()     # Anonymous net
+                name = NetName()     # Anonymous net
 
             nets_info.get(name, layer).append(poly)
 
             if len(found_nets) > 1:
                 # Found a short
                 logger.warning(f'Nets {found_nets} are shorted on layer {layer} in poly:\n {pformat(poly)}')
-                merge_groups.append(found_nets)     # type: ignore
+                merge_groups.append([name] + [NetName(nn) for nn in found_nets[1:]])
 
     for group in merge_groups:
         first_net, *defunct_nets = group
@@ -81,17 +81,6 @@ def check_connectivity(
     merge_pairs = find_merge_pairs(connectivity, nets_info.nets, via_polys)
     for net_a, net_b in merge_pairs:
         nets_info.merge(net_a, net_b)
-
-
-    print('merged pairs')
-    print(pformat(merge_pairs))
-
-    print('\nFinal nets:')
-    print([kk for kk in nets_info.nets if isinstance(kk, str)])
-
-    print('\nNet sets:')
-    for short in nets_info.get_shorted_nets():
-        print('(' + ','.join(sorted(list(short))) + ')')
 
     return nets_info
 
@@ -142,9 +131,9 @@ def label_poly(
 
 def find_merge_pairs(
         connectivity: connectivity_t,
-        nets: Mapping[net_name_t, Mapping[layer_t, Sequence[contour_t]]],
+        nets: Mapping[NetName, Mapping[layer_t, Sequence[contour_t]]],
         via_polys: Mapping[layer_t, Sequence[contour_t]],
-        ) -> Set[Tuple[net_name_t, net_name_t]]:
+        ) -> Set[Tuple[NetName, NetName]]:
     #
     #   Merge nets based on via connectivity
     #
@@ -155,8 +144,6 @@ def find_merge_pairs(
             if not vias:
                 continue
 
-        #TODO deal with polygons that have holes (loops?)
-
         for top_name in nets.keys():
             top_polys = nets[top_name][top_layer]
             if not top_polys:
@@ -165,7 +152,7 @@ def find_merge_pairs(
             for bot_name in nets.keys():
                 if bot_name == top_name:
                     continue
-                name_pair = tuple(sorted((top_name, bot_name), key=lambda s: id(s)))
+                name_pair = tuple(sorted((top_name, bot_name)))
                 if name_pair in merge_pairs:
                     continue
 

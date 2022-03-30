@@ -1,3 +1,5 @@
+from pprint import pformat
+
 from masque.file import gdsii, oasis
 
 import snarl
@@ -18,3 +20,12 @@ topcell = cells['top']
 polys, labels = snarl.interfaces.masque.read_topcell(topcell, connectivity)
 nets_info = snarl.check_connectivity(polys, labels, connectivity)
 
+print('\nFinal nets:')
+print([kk for kk in nets_info.nets if isinstance(kk.name, str)])
+
+print('\nShorted net sets:')
+for short in nets_info.get_shorted_nets():
+    print('(' + ','.join([repr(nn) for nn in sorted(list(short))]) + ')')
+
+print('\nOpen nets:')
+print(pformat(dict(nets_info.get_open_nets())))

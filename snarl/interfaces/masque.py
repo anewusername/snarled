@@ -37,8 +37,21 @@ def read_topcell(
 
     metal_labels = defaultdict(list)
     for label_layer, metal_layer in label_mapping.items():
-        labels = [ll for ll in topcell.labels if ll.layer == label_layer]
-        metal_labels[metal_layer] += [(*ll.offset, ll.string) for ll in labels]
+        labels = []
+        for ll in topcell.labels:
+            if ll.layer != label_layer:
+                continue
+
+            if ll.repetition is None:
+                displacements = [(0, 0)]
+            else:
+                displacements = ll.repetition.displacements
+
+            for displacement in displacements:
+                offset = ll.offset + displacement
+                metal_labels[metal_layer].append(
+                    (*offset, ll.string)
+                    )
 
     return polys, metal_labels
 
