@@ -18,7 +18,7 @@ cells, props = oasis.readfile('connectivity.oas')
 topcell = cells['top']
 
 polys, labels = snarl.interfaces.masque.read_topcell(topcell, connectivity)
-nets_info = snarl.check_connectivity(polys, labels, connectivity)
+nets_info = snarl.trace_connectivity(polys, labels, connectivity)
 
 print('\nFinal nets:')
 print([kk for kk in nets_info.nets if isinstance(kk.name, str)])

@@ -17,7 +17,7 @@ from .utils import connectivity2layers
 logger = logging.getLogger(__name__)
 
 
-def check_connectivity(
+def trace_connectivity(
         polys: Mapping[layer_t, Sequence[ArrayLike]],
         labels: Mapping[layer_t, Sequence[Tuple[float, float, str]]],
         connectivity: Sequence[Tuple[layer_t, Optional[layer_t], layer_t]],

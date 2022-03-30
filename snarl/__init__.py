@@ -1,7 +1,7 @@
 """
 TODO: ALL DOCSTRINGS
 """
-from .main import check_connectivity
+from .main import trace_connectivity
 from  . import interfaces
 
 
