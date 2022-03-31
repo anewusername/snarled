@@ -27,7 +27,7 @@ pip3 install snarl
 Alternatively, install from git
 ```bash
 pip3 install git+https://mpxd.net/code/jan/snarl.git@release
-
+```
 
 ## Example
 See `examples/check.py`. Note that the example uses `masque` to load data.
