@@ -2,6 +2,7 @@
 TODO: ALL DOCSTRINGS
 """
 from .main import trace_connectivity
+from .tracker import NetsInfo, NetName
 from  . import interfaces
 
 
