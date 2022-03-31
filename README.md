@@ -102,8 +102,8 @@ Open nets:
 
 ## Code organization
 
-The main functionality is in `trace_connectivity`.
-Useful classes, namely `NetsInfo` and `NetName`, are in `snarl.tracker`.
-`snarl.interfaces` contains helper code for interfacing with other packages.
+- The main functionality is in `trace_connectivity`.
+- Useful classes, namely `NetsInfo` and `NetName`, are in `snarl.tracker`.
+- `snarl.interfaces` contains helper code for interfacing with other packages.
 
 
