@@ -11,8 +11,8 @@ from ..types import layer_t
 from ..utils import connectivity2layers
 
 
-def read_topcell(
-        topcell: Pattern,
+def read_cell(
+        cell: Pattern,
         connectivity: Sequence[Tuple[layer_t, Optional[layer_t], layer_t]],
         label_mapping: Optional[Mapping[layer_t, layer_t]] = None,
         ) -> Tuple[
@@ -26,19 +26,19 @@ def read_topcell(
         label_mapping = {layer: layer for layer in metal_layers}
     label_layers = {label_layer for label_layer in label_mapping.keys()}
 
-    topcell = topcell.deepcopy().subset(
+    cell = cell.deepcopy().subset(
         shapes_func=lambda ss: ss.layer in poly_layers,
         labels_func=lambda ll: ll.layer in label_layers,
         subpatterns_func=lambda ss: True,
         )
-    topcell = topcell.flatten()
+    cell = cell.flatten()
 
-    polys = load_polys(topcell, list(poly_layers))
+    polys = load_polys(cell, list(poly_layers))
 
     metal_labels = defaultdict(list)
     for label_layer, metal_layer in label_mapping.items():
         labels = []
-        for ll in topcell.labels:
+        for ll in cell.labels:
             if ll.layer != label_layer:
                 continue
 
@@ -57,11 +57,11 @@ def read_topcell(
 
 
 def load_polys(
-        topcell: Pattern,
+        cell: Pattern,
         layers: Sequence[layer_t],
         ) -> defaultdict[layer_t, List[NDArray[numpy.float64]]]:
     polys = defaultdict(list)
-    for ss in topcell.shapes:
+    for ss in cell.shapes:
         if ss.layer not in layers:
             continue
 
