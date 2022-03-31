@@ -14,6 +14,8 @@ def connectivity2layers(
         if via is not None:
             via_layers.add(via)
 
-    # TODO verify no overlap between metal and via layer specifications
+    both = metal_layers.intersection(via_layers)
+    if both:
+        raise Exception(f'The following layers are both vias and metals!? {both}')
 
     return metal_layers, via_layers
