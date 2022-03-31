@@ -54,7 +54,8 @@ def trace_connectivity(
 
             if len(found_nets) > 1:
                 # Found a short
-                logger.warning(f'Nets {found_nets} are shorted on layer {layer} in poly:\n {pformat(poly)}')
+                poly = pformat(scale_from_clipper(poly.Contour, clipper_scale_factor))
+                logger.warning(f'Nets {found_nets} are shorted on layer {layer} in poly:\n {poly}')
                 merge_groups.append([name] + [NetName(nn) for nn in found_nets[1:]])
 
     for group in merge_groups:
