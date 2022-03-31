@@ -1,3 +1,7 @@
+"""
+Example code for checking connectivity in a layout by using
+`snarl` and `masque`.
+"""
 from pprint import pformat
 
 from masque.file import gdsii, oasis
@@ -17,11 +21,11 @@ connectivity = {
 cells, props = oasis.readfile('connectivity.oas')
 topcell = cells['top']
 
-polys, labels = snarl.interfaces.masque.read_topcell(topcell, connectivity)
+polys, labels = snarl.interfaces.masque.read_cell(topcell, connectivity)
 nets_info = snarl.trace_connectivity(polys, labels, connectivity)
 
 print('\nFinal nets:')
-print([kk for kk in nets_info.nets if isinstance(kk.name, str)])
+print([kk for kk in sorted(nets_info.nets.keys()) if isinstance(kk.name, str)])
 
 print('\nShorted net sets:')
 for short in nets_info.get_shorted_nets():
