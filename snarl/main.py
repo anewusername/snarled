@@ -21,13 +21,10 @@ def trace_connectivity(
         polys: Mapping[layer_t, Sequence[ArrayLike]],
         labels: Mapping[layer_t, Sequence[Tuple[float, float, str]]],
         connectivity: Sequence[Tuple[layer_t, Optional[layer_t], layer_t]],
-        label_mapping: Optional[Mapping[layer_t, layer_t]] = None,
         clipper_scale_factor: int = int(2 ** 24),
         ) -> NetsInfo:
 
     metal_layers, via_layers = connectivity2layers(connectivity)
-    if label_mapping is None:
-        label_mapping = {layer: layer for layer in metal_layers}
 
     metal_polys = {layer: union_input_polys(scale_to_clipper(polys[layer], clipper_scale_factor))
                    for layer in metal_layers}
