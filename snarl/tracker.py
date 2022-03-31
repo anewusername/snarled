@@ -39,11 +39,11 @@ class NetName:
 
 class NetsInfo:
     nets: defaultdict[NetName, defaultdict[layer_t, List]]
-    net_aliases: defaultdict[NetName, NetName]
+    net_aliases: Dict[NetName, NetName]
 
     def __init__(self) -> None:
         self.nets = defaultdict(lambda: defaultdict(list))
-        self.net_aliases = defaultdict(list)
+        self.net_aliases = {}
 
     def resolve_name(self, net_name: NetName) -> NetName:
         while net_name in self.net_aliases:
