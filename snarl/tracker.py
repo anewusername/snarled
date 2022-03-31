@@ -6,9 +6,17 @@ from .types import layer_t, contour_t
 
 
 class NetName:
+    """
+    Basically just a uniquely-sortable `Optional[str]`.
+
+    A `name` of `None` indicates that the net is anonymous.
+    The `subname` is used to track multiple same-named nets, to allow testing for opens.
+    """
     name: Optional[str]
     subname: int
+
     count: ClassVar[defaultdict[Optional[str], int]] = defaultdict(int)
+    """ Counter for how many classes have been instantiated with each name """
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name = name
@@ -38,19 +46,57 @@ class NetName:
 
 
 class NetsInfo:
+    """
+    Container for describing all nets and keeping track of the "canonical" name for each
+    net. Nets which are known to be shorted together should be `merge`d together,
+    combining their geometry under the "canonical" name and adding the other name as an alias.
+    """
     nets: defaultdict[NetName, defaultdict[layer_t, List]]
+    """
+    Contains all polygons for all nets, in the format
+    `{net_name: {layer: [poly0, poly1, ...]}}`
+
+    Polygons are usually stored in pyclipper-friendly coordinates, but may be either `PyPolyNode`s
+     or simple lists of coordinates (oriented boundaries).
+    """
+
     net_aliases: Dict[NetName, NetName]
+    """
+    A mapping from alias to underlying name.
+    Note that the underlying name may itself be an alias.
+    `resolve_name` can be used to simplify lookup
+    """
 
     def __init__(self) -> None:
         self.nets = defaultdict(lambda: defaultdict(list))
         self.net_aliases = {}
 
     def resolve_name(self, net_name: NetName) -> NetName:
+        """
+        Find the canonical name (as used in `self.nets`) for any NetName.
+
+        Args:
+            net_name: The name of the net to look up. May be an alias.
+
+        Returns:
+            The canonical name for the net.
+        """
         while net_name in self.net_aliases:
             net_name = self.net_aliases[net_name]
         return net_name
 
     def merge(self, net_a: NetName, net_b: NetName) -> None:
+        """
+        Combine two nets into one.
+        Usually used when it is discovered that two nets are shorted.
+
+        The name that is preserved is based on the sort order of `NetName`s,
+        which favors non-anonymous, lexicograpically small names.
+
+        Args:
+            net_a: A net to merge
+            net_b: The other net to merge
+        """
         net_a = self.resolve_name(net_a)
         net_b = self.resolve_name(net_b)
 
@@ -66,6 +112,12 @@ class NetsInfo:
 
 
     def get_shorted_nets(self) -> List[Set[NetName]]:
+        """
+        List groups of non-anonymous nets which were merged.
+
+        Returns:
+            A list of sets of shorted nets.
+        """
         shorts = defaultdict(list)
         for kk in self.net_aliases:
             if kk.name is None:
@@ -80,6 +132,12 @@ class NetsInfo:
         return shorted_sets
 
     def get_open_nets(self) -> defaultdict[str, List[NetName]]:
+        """
+        List groups of same-named nets which were *not* merged.
+
+        Returns:
+            A list of sets of same-named, non-shorted nets.
+        """
         opens = defaultdict(list)
         seen_names = {}
         for kk in self.nets:

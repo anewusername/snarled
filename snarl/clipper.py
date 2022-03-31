@@ -1,3 +1,6 @@
+"""
+Wrappers to simplify some pyclipper functions
+"""
 from typing import Sequence, Optional, List
 
 from numpy.typing import ArrayLike

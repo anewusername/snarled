@@ -1,3 +1,6 @@
+"""
+Utilities for working with polygons
+"""
 import numpy
 from numpy.typing import NDArray, ArrayLike
 
