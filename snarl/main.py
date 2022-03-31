@@ -53,7 +53,7 @@ def trace_connectivity(
             else:
                 name = NetName()     # Anonymous net
 
-            nets_info.get(name, layer).append(poly)
+            nets_info.nets[name][layer].append(poly)
 
             if len(found_nets) > 1:
                 # Found a short

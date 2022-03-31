@@ -64,8 +64,6 @@ class NetsInfo:
                 self.nets[keep_net][layer] += self.nets[old_net][layer]
             del self.nets[old_net]
 
-    def get(self, net: NetName, layer: layer_t) -> List[contour_t]:
-        return self.nets[self.resolve_name(net)][layer]
 
     def get_shorted_nets(self) -> List[Set[NetName]]:
         shorts = defaultdict(list)
