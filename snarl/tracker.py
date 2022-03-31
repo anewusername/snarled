@@ -1,4 +1,4 @@
-from typing import List, Set, ClassVar, Optional
+from typing import List, Set, ClassVar, Optional, Dict
 from collections import defaultdict
 from dataclasses import dataclass
 
