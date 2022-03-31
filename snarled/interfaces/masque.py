@@ -24,18 +24,18 @@ def read_cell(
     """
     Extract `polys` and `labels` from a `masque.Pattern`.
 
-    This function extracts the data needed by `snarl.trace_connectivity`.
+    This function extracts the data needed by `snarled.trace_connectivity`.
 
     Args:
         cell: A `masque` `Pattern` object. Usually your topcell.
         connectivity: A sequence of 3-tuples specifying the layer connectivity.
-            Same as what is provided to `snarl.trace_connectivity`.
+            Same as what is provided to `snarled.trace_connectivity`.
         label_mapping: A mapping of `{label_layer: metal_layer}`. This allows labels
             to refer to nets on metal layers without the labels themselves being on
             that layer.
 
     Returns:
-        `polys` and `labels` data structures, to be passed to `snarl.trace_connectivity`.
+        `polys` and `labels` data structures, to be passed to `snarled.trace_connectivity`.
     """
 
     metal_layers, via_layers = connectivity2layers(connectivity)
@@ -80,7 +80,7 @@ def load_polys(
         layers: Sequence[layer_t],
         ) -> defaultdict[layer_t, List[NDArray[numpy.float64]]]:
     """
-    Given a *flat* `masque.Pattern`, extract the polygon info into the format used by `snarl`.
+    Given a *flat* `masque.Pattern`, extract the polygon info into the format used by `snarled`.
 
     Args:
         cell: The `Pattern` object to extract from.
@@ -88,7 +88,7 @@ def load_polys(
 
     Returns:
         `{layer0: [poly0, [(x0, y0), (x1, y1), ...], poly2, ...]}`
-        `polys` structure usable by `snarl.trace_connectivity`.
+        `polys` structure usable by `snarled.trace_connectivity`.
     """
     polys = defaultdict(list)
     for ss in cell.shapes:

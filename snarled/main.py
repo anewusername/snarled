@@ -1,5 +1,5 @@
 """
-Main connectivity-checking functionality for `snarl`
+Main connectivity-checking functionality for `snarled`
 """
 from typing import Tuple, List, Dict, Set, Optional, Union, Sequence, Mapping
 from collections import defaultdict
@@ -29,7 +29,7 @@ def trace_connectivity(
     """
     Analyze the electrical connectivity of the layout.
 
-    This is the primary purpose of `snarl`.
+    This is the primary purpose of `snarled`.
 
     The resulting `NetsInfo` will contain only disjoint `nets`, and its `net_aliases` can be used to
     understand which nets are shorted (and therefore known by more than one name).

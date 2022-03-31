@@ -1,15 +1,15 @@
-snarl README
+snarled README
 ============
 
 Layout connectivity checker.
 
-`snarl` is a python package for checking electrical connectivity in multi-layer layouts.
+`snarled` is a python package for checking electrical connectivity in multi-layer layouts.
 
 It is intended to be "poor-man's LVS" (layout-versus-schematic), for when poverty
 has deprived the man of both a schematic and a better connectivity tool.
 
-- [Source repository](https://mpxd.net/code/jan/snarl)
-- [PyPI](https://pypi.org/project/snarl)
+- [Source repository](https://mpxd.net/code/jan/snarled)
+- [PyPI](https://pypi.org/project/snarled)
 
 ## Installation
 
@@ -21,12 +21,12 @@ Requirements:
 
 Install with pip:
 ```bash
-pip3 install snarl
+pip3 install snarled
 ```
 
 Alternatively, install from git
 ```bash
-pip3 install git+https://mpxd.net/code/jan/snarl.git@release
+pip3 install git+https://mpxd.net/code/jan/snarled.git@release
 ```
 
 ## Example
@@ -35,8 +35,8 @@ See `examples/check.py`. Note that the example uses `masque` to load data.
 ```python3
 from pprint import pformat
 from masque.file import gdsii, oasis
-import snarl
-import snarl.interfaces.masque
+import snarled
+import snarled.interfaces.masque
 
 # Layer definitions
 connectivity = {
@@ -49,8 +49,8 @@ connectivity = {
 cells, props = oasis.readfile('connectivity.oas')
 topcell = cells['top']
 
-polys, labels = snarl.interfaces.masque.read_cell(topcell, connectivity)
-nets_info = snarl.trace_connectivity(polys, labels, connectivity)
+polys, labels = snarled.interfaces.masque.read_cell(topcell, connectivity)
+nets_info = snarled.trace_connectivity(polys, labels, connectivity)
 
 print('\nFinal nets:')
 print([kk for kk in nets_info.nets if isinstance(kk.name, str)])
@@ -103,7 +103,7 @@ Open nets:
 ## Code organization
 
 - The main functionality is in `trace_connectivity`.
-- Useful classes, namely `NetsInfo` and `NetName`, are in `snarl.tracker`.
-- `snarl.interfaces` contains helper code for interfacing with other packages.
+- Useful classes, namely `NetsInfo` and `NetName`, are in `snarled.tracker`.
+- `snarled.interfaces` contains helper code for interfacing with other packages.
 
 

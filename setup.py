@@ -6,20 +6,20 @@ from setuptools import setup, find_packages
 with open('README.md', 'rt') as f:
     long_description = f.read()
 
-with open('snarl/VERSION.py', 'rt') as f:
+with open('snarled/VERSION.py', 'rt') as f:
     version = f.readlines()[2].strip()
 
-setup(name='snarl',
+setup(name='snarled',
       version=version,
       description='CAD layout electrical connectivity checker',
       long_description=long_description,
       long_description_content_type='text/markdown',
       author='Jan Petykiewicz',
       author_email='jan@mpxd.net',
-      url='https://mpxd.net/code/jan/snarl',
+      url='https://mpxd.net/code/jan/snarled',
       packages=find_packages(),
       package_data={
-          'snarl': ['py.typed',
+          'snarled': ['py.typed',
                     ]
       },
       install_requires=[
