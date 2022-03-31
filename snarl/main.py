@@ -37,10 +37,10 @@ def trace_connectivity(
     nets_info = NetsInfo()
 
     merge_groups: List[List[NetName]] = []
-    for layer, labels_for_layer in labels.items():
+    for layer in metal_layers:
         point_xys = []
         point_names = []
-        for x, y, point_name in labels_for_layer:
+        for x, y, point_name in labels[layer]:
             point_xys.append((x, y))
             point_names.append(point_name)
 
