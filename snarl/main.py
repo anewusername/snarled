@@ -140,6 +140,7 @@ def find_merge_pairs(
         if via_layer is not None:
             vias = via_polys[via_layer]
             if not vias:
+                logger.warning(f'No vias on layer {via_layer}')
                 continue
 
         for top_name in nets.keys():
