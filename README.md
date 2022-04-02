@@ -106,4 +106,11 @@ Open nets:
 - Useful classes, namely `NetsInfo` and `NetName`, are in `snarled.tracker`.
 - `snarled.interfaces` contains helper code for interfacing with other packages.
 
+## Caveats
+
+This package is slow, dumb, and the code is ugly. There's only a basic test case.
+
+If you know what you're doing, you could probably do a much better job of it.
+
+...but you *have* heard of it :)
 
