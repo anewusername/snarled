@@ -50,17 +50,39 @@ def read_cell(
         labels_func=lambda ll: ll.layer in label_layers,
         subpatterns_func=lambda ss: True,
         )
-    cell = cell.flatten()
 
-    polys = load_polys(cell, list(poly_layers))
+    # load polygons
+    polys = defaultdict(list)
+    for layer in poly_layers:
+        shapes_hier = cell.subset(
+            shapes_func=lambda ss: ss.layer == layer,
+            subpatterns_func=lambda ss: True,
+            )
+        shapes = shapes_hier.flatten().shapes
 
+        for ss in shapes:
+            assert(isinstance(ss, Polygon))
+
+            if ss.repetition is None:
+                displacements = [(0, 0)]
+            else:
+                displacements = ss.repetition.displacements
+
+            for displacement in displacements:
+                polys[ss.layer].append(
+                    ss.vertices + ss.offset + displacement
+                    )
+
+    # load metal labels
     metal_labels = defaultdict(list)
     for label_layer, metal_layer in label_mapping.items():
-        labels = []
-        for ll in cell.labels:
-            if ll.layer != label_layer:
-                continue
+        labels_hier = cell.subset(
+            labels_func=lambda ll: ll.layer == label_layer,
+            subpatterns_func=lambda ss: True,
+            )
+        labels = labels_hier.flatten().labels
 
+        for ll in labels:
             if ll.repetition is None:
                 displacements = [(0, 0)]
             else:
@@ -73,37 +95,3 @@ def read_cell(
                     )
 
     return polys, metal_labels
-
-
-def load_polys(
-        cell: Pattern,
-        layers: Sequence[layer_t],
-        ) -> defaultdict[layer_t, List[NDArray[numpy.float64]]]:
-    """
-    Given a *flat* `masque.Pattern`, extract the polygon info into the format used by `snarled`.
-
-    Args:
-        cell: The `Pattern` object to extract from.
-        layers: The layers to extract.
-
-    Returns:
-        `{layer0: [poly0, [(x0, y0), (x1, y1), ...], poly2, ...]}`
-        `polys` structure usable by `snarled.trace_connectivity`.
-    """
-    polys = defaultdict(list)
-    for ss in cell.shapes:
-        if ss.layer not in layers:
-            continue
-
-        assert(isinstance(ss, Polygon))
-
-        if ss.repetition is None:
-            displacements = [(0, 0)]
-        else:
-            displacements = ss.repetition.displacements
-
-        for displacement in displacements:
-            polys[ss.layer].append(
-                ss.vertices + ss.offset + displacement
-                )
-    return polys
