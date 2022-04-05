@@ -21,8 +21,8 @@ connectivity = [
 cells, props = oasis.readfile('connectivity.oas')
 topcell = cells['top']
 
-polys, labels = snarled.interfaces.masque.read_cell(topcell, connectivity)
-nets_info = snarled.trace_connectivity_preloaded(polys, labels, connectivity)
+get_layer = snarled.interfaces.masque.prepare_cell(topcell)
+nets_info = snarled.trace_connectivity(get_layer, connectivity)
 
 print('\nFinal nets:')
 print([kk for kk in sorted(nets_info.nets.keys()) if isinstance(kk.name, str)])
