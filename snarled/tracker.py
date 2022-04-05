@@ -99,6 +99,8 @@ class NetsInfo:
         """
         net_a = self.resolve_name(net_a)
         net_b = self.resolve_name(net_b)
+        if net_a is net_b:
+            return
 
         # Always keep named nets if the other is anonymous
         keep_net, old_net = sorted((net_a, net_b))
@@ -110,6 +112,16 @@ class NetsInfo:
                 self.nets[keep_net][layer] += self.nets[old_net][layer]
             del self.nets[old_net]
 
+    def prune(self, layer: layer_t) -> None:
+        """
+        Delete all geometry for the given layer.
+
+        Args:
+            layer: The layer to "forget"
+        """
+        for net in self.nets.values():
+            if layer in net:
+                del net[layer]
 
     def get_shorted_nets(self) -> List[Set[NetName]]:
         """

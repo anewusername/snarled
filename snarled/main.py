@@ -1,7 +1,7 @@
 """
 Main connectivity-checking functionality for `snarled`
 """
-from typing import Tuple, List, Dict, Set, Optional, Union, Sequence, Mapping
+from typing import Tuple, List, Dict, Set, Optional, Union, Sequence, Mapping, Callable
 from collections import defaultdict
 from pprint import pformat
 import logging
@@ -20,16 +20,14 @@ from .utils import connectivity2layers
 logger = logging.getLogger(__name__)
 
 
-def trace_connectivity(
+def trace_connectivity_preloaded(
         polys: Mapping[layer_t, Sequence[ArrayLike]],
         labels: Mapping[layer_t, Sequence[Tuple[float, float, str]]],
         connectivity: Sequence[Tuple[layer_t, Optional[layer_t], layer_t]],
         clipper_scale_factor: int = int(2 ** 24),
         ) -> NetsInfo:
     """
-    Analyze the electrical connectivity of the layout.
-
-    This is the primary purpose of `snarled`.
+    Analyze the electrical connectivity of the provided layout.
 
     The resulting `NetsInfo` will contain only disjoint `nets`, and its `net_aliases` can be used to
     understand which nets are shorted (and therefore known by more than one name).
@@ -55,70 +53,106 @@ def trace_connectivity(
     Returns:
         `NetsInfo` object describing the various nets and their connectivities.
     """
-    #
-    # Figure out which layers are metals vs vias, and run initial union on each layer
-    #
-    metal_layers, via_layers = connectivity2layers(connectivity)
+    def get_layer(layer: layer_t) -> Tuple[Sequence[ArrayLike], Sequence[Tuple[float, float, str]]]:
+        return polys[layer], labels[layer]
 
-    metal_polys = {layer: union_input_polys(scale_to_clipper(polys[layer], clipper_scale_factor))
-                   for layer in metal_layers}
-    via_polys = {layer: union_input_polys(scale_to_clipper(polys[layer], clipper_scale_factor))
-                 for layer in via_layers}
+    return trace_connectivity(get_layer, connectivity, clipper_scale_factor)
 
-    #
-    # Check each polygon for labels, and assign it to a net (possibly anonymous).
-    #
+
+def trace_connectivity(
+        get_layer: Callable[[layer_t], Tuple[Sequence[ArrayLike], Sequence[Tuple[float, float, str]]]],
+        connectivity: Sequence[Tuple[layer_t, Optional[layer_t], layer_t]],
+        clipper_scale_factor: int = int(2 ** 24),
+        ) -> NetsInfo:
+    """
+    Analyze the electrical connectivity of a layout.
+
+    The resulting `NetsInfo` will contain only disjoint `nets`, and its `net_aliases` can be used to
+    understand which nets are shorted (and therefore known by more than one name).
+
+    This function attempts to reduce memory usage by lazy-loading layout data (layer-by-layer) and
+    pruning away layers for which all interactions have already been computed.
+    TODO: In the future, this will be extended to cover partial loading of spatial extents in
+          addition to layers.
+
+    Args:
+        get_layer: When called, `polys, labels = get_layer(layer)` should return the geometry and labels
+            on that layer. Returns
+
+            polys, A list of polygons (Nx2 arrays of vertices) on the layer. The structure looks like
+                `[poly0, poly1, ..., [(x0, y0), (x1, y1), ...]]`
+
+            labels, A list of "named points" which are used to assign names to the nets they touch.
+                A list of (x, y, name) tuples targetting this layer.
+                `[(x0, y0, name0), (x1, y1, name1), ...]`
+
+        connectivity: A sequence of 3-tuples specifying the electrical connectivity between layers.
+
+            Each 3-tuple looks like `(top_layer, via_layer, bottom_layer)` and indicates that
+            `top_layer` and `bottom_layer` are electrically connected at any location where
+            shapes are present on all three (top, via, and bottom) layers.
+
+            `via_layer` may be `None`, in which case any overlap between shapes on `top_layer`
+            and `bottom_layer` is automatically considered a short (with no third shape necessary).
+
+            NOTE that the order in which connectivity is specified (i.e. top-level ordering of the
+            tuples) directly sets the order in which the layers are loaded and merged, and thus
+            has a significant impact on memory usage by determining when layers can be pruned away.
+            Try to group entries by the layers they affect!
+
+        clipper_scale_factor: `pyclipper` uses 64-bit integer math, while we accept either floats or ints.
+            The coordinates from `polys` are scaled by this factor to put them roughly in the middle of
+            the range `pyclipper` wants; you may need to adjust this if you are already using coordinates
+            with large integer values.
+
+    Returns:
+        `NetsInfo` object describing the various nets and their connectivities.
+    """
+    loaded_layers = set()
     nets_info = NetsInfo()
 
-    merge_groups: List[List[NetName]] = []
-    for layer in metal_layers:
-        point_xys = []
-        point_names = []
-        for x, y, point_name in labels[layer]:
-            point_xys.append((x, y))
-            point_names.append(point_name)
+    for ii, (top_layer, via_layer, bot_layer) in enumerate(connectivity):
+        for metal_layer in (top_layer, bot_layer):
+            if metal_layer in loaded_layers:
+                continue
+            # Load and run initial union on each layer
+            raw_polys, labels = get_layer(metal_layer)
+            polys = union_input_polys(scale_to_clipper(raw_polys, clipper_scale_factor))
 
-        for poly in metal_polys[layer]:
-            found_nets = label_poly(poly, point_xys, point_names, clipper_scale_factor)
+            # Check each polygon for labels, and assign it to a net (possibly anonymous).
+            nets_on_layer, merge_groups = label_polys(polys, labels, clipper_scale_factor)
+            for name, net_polys in nets_on_layer.items():
+                nets_info.nets[name][metal_layer] += hier2oriented(net_polys)
 
-            if found_nets:
-                name = NetName(found_nets[0])
-            else:
-                name = NetName()     # Anonymous net
+            # Merge any nets that were shorted by having their labels on the same polygon
+            for group in merge_groups:
+                logger.warning(f'Nets {group} are shorted on layer {metal_layer}')
+                first_net, *defunct_nets = group
+                for defunct_net in defunct_nets:
+                    nets_info.merge(first_net, defunct_net)
 
-            nets_info.nets[name][layer].append(poly)
+            loaded_layers.add(metal_layer)
 
-            if len(found_nets) > 1:
-                # Found a short
-                poly = pformat(scale_from_clipper(poly.Contour, clipper_scale_factor))
-                logger.warning(f'Nets {found_nets} are shorted on layer {layer} in poly:\n {poly}')
-                merge_groups.append([name] + [NetName(nn) for nn in found_nets[1:]])
+        # Load and union vias
+        via_raw_polys, _labels = get_layer(via_layer)
+        via_polys = hier2oriented(union_input_polys(
+            scale_to_clipper(via_raw_polys, clipper_scale_factor)
+            ))
 
-    #
-    # Merge any nets that were shorted by having their labels on the same polygon
-    #
-    for group in merge_groups:
-        first_net, *defunct_nets = group
-        for defunct_net in defunct_nets:
-            nets_info.merge(first_net, defunct_net)
+        # Figure out which nets are shorted by vias, then merge them
+        merge_pairs = find_merge_pairs(nets_info.nets, top_layer, bot_layer, via_polys)
+        for net_a, net_b in merge_pairs:
+            nets_info.merge(net_a, net_b)
 
-    #
-    # Convert to non-hierarchical polygon representation
-    #
-    for net in nets_info.nets.values():
-        for layer in net:
-            #net[layer] = union_evenodd(hier2oriented(net[layer]))
-            net[layer] = hier2oriented(net[layer])
 
-    for layer in via_polys:
-        via_polys[layer] = hier2oriented(via_polys[layer])
+        remaining_layers = set()
+        for layer_a, _, layer_b in connectivity[ii + 1:]:
+            remaining_layers.add(layer_a)
+            remaining_layers.add(layer_b)
 
-    #
-    # Figure out which nets are shorted by vias, then merge them
-    #
-    merge_pairs = find_merge_pairs(connectivity, nets_info.nets, via_polys)
-    for net_a, net_b in merge_pairs:
-        nets_info.merge(net_a, net_b)
+        finished_layers = loaded_layers - remaining_layers
+        for layer in finished_layers:
+            nets_info.prune(layer)
 
     return nets_info
 
@@ -166,12 +200,44 @@ def union_input_polys(polys: Sequence[ArrayLike]) -> List[PyPolyNode]:
 
     return outer_nodes
 
+def label_polys(
+        polys: Sequence[PyPolyNode],
+        labels: Sequence[Tuple[float, float, str]],
+        clipper_scale_factor: int,
+        ) -> Tuple[
+            defaultdict[NetName, List[PyPolyNode]],
+            List[List[NetName]]
+            ]:
+    merge_groups = []
+    point_xys = []
+    point_names = []
+    nets = defaultdict(list)
+    for x, y, point_name in labels:
+        point_xys.append((x, y))
+        point_names.append(point_name)
+
+    for poly in polys:
+        found_nets = label_poly(poly, point_xys, point_names, clipper_scale_factor)
+
+        if found_nets:
+            name = NetName(found_nets[0])
+        else:
+            name = NetName()     # Anonymous net
+
+        nets[name].append(poly)
+
+        if len(found_nets) > 1:
+            # Found a short
+            poly = pformat(scale_from_clipper(poly.Contour, clipper_scale_factor))
+            merge_groups.append([name] + [NetName(nn) for nn in found_nets[1:]])
+    return nets, merge_groups
+
 
 def label_poly(
         poly: PyPolyNode,
         point_xys: ArrayLike,
         point_names: Sequence[str],
-        clipper_scale_factor: int = int(2 ** 24),
+        clipper_scale_factor: int,
         ) -> List[str]:
     """
     Given a `PyPolyNode` (a polygon, possibly with holes) and a sequence of named points,
@@ -209,60 +275,54 @@ def label_poly(
 
 
 def find_merge_pairs(
-        connectivity: connectivity_t,
         nets: Mapping[NetName, Mapping[layer_t, Sequence[contour_t]]],
-        via_polys: Mapping[layer_t, Sequence[contour_t]],
+        top_layer: layer_t,
+        bot_layer: layer_t,
+        via_polys: Optional[Sequence[contour_t]],
         ) -> Set[Tuple[NetName, NetName]]:
     """
     Given a collection of (possibly anonymous) nets, figure out which pairs of
     nets are shorted through a via (and thus should be merged).
 
     Args:
-        connectivity: A sequence of 3-tuples specifying the electrical connectivity between layers.
-            Each 3-tuple looks like `(top_layer, via_layer, bottom_layer)` and indicates that
-            `top_layer` and `bottom_layer` are electrically connected at any location where
-            shapes are present on all three (top, via, and bottom) layers.
-            `via_layer` may be `None`, in which case any overlap between shapes on `top_layer`
-            and `bottom_layer` is automatically considered a short (with no third shape necessary).
         nets: A collection of all nets (seqences of polygons in mappings indexed by `NetName`
             and layer). See `NetsInfo.nets`.
-        via_polys: A collection of all vias (in a mapping indexed by layer).
+        top_layer: Layer name of first layer
+        bot_layer: Layer name of second layer
+        via_polys: Sequence of via contours. `None` denotes to vias necessary (overlap is sufficent).
 
     Returns:
         A set containing pairs of `NetName`s for each pair of nets which are shorted.
     """
     merge_pairs = set()
-    for top_layer, via_layer, bot_layer in connectivity:
-        if via_layer is not None:
-            vias = via_polys[via_layer]
-            if not vias:
-                logger.warning(f'No vias on layer {via_layer}')
+    if via_polys is not None and not via_polys:
+        logger.warning(f'No vias between layers {top_layer}, {bot_layer}')
+        return merge_pairs
+
+    for top_name in nets.keys():
+        top_polys = nets[top_name][top_layer]
+        if not top_polys:
+            continue
+
+        for bot_name in nets.keys():
+            if bot_name == top_name:
                 continue
 
-        for top_name in nets.keys():
-            top_polys = nets[top_name][top_layer]
-            if not top_polys:
+            name_pair: Tuple[NetName, NetName] = tuple(sorted((top_name, bot_name)))  #type: ignore
+            if name_pair in merge_pairs:
                 continue
 
-            for bot_name in nets.keys():
-                if bot_name == top_name:
-                    continue
-                name_pair: Tuple[NetName, NetName] = tuple(sorted((top_name, bot_name)))  #type: ignore
-                if name_pair in merge_pairs:
-                    continue
+            bot_polys = nets[bot_name][bot_layer]
+            if not bot_polys:
+                continue
 
-                bot_polys = nets[bot_name][bot_layer]
-                if not bot_polys:
-                    continue
+            if via_polys is not None:
+                via_top = intersection_evenodd(top_polys, via_polys)
+                overlap = intersection_evenodd(via_top, bot_polys)
+            else:
+                overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
 
-                if via_layer is not None:
-                    via_top = intersection_evenodd(top_polys, vias)
-                    overlap = intersection_evenodd(via_top, bot_polys)
-                else:
-                    overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
-
-                if not overlap:
-                    continue
-
+            if overlap:
                 merge_pairs.add(name_pair)
+
     return merge_pairs
