@@ -126,7 +126,9 @@ def trace_connectivity(
 
             # Merge any nets that were shorted by having their labels on the same polygon
             for group in merge_groups:
-                logger.warning(f'Nets {group} are shorted on layer {metal_layer}')
+                net_names = set(nn.name for nn in group)
+                if len(net_names) > 1:
+                    logger.warning(f'Nets {net_names} are shorted on layer {metal_layer}')
                 first_net, *defunct_nets = group
                 for defunct_net in defunct_nets:
                     nets_info.merge(first_net, defunct_net)
