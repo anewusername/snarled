@@ -12,7 +12,7 @@ from pyclipper import scale_to_clipper, scale_from_clipper, PyPolyNode
 
 from .types import connectivity_t, layer_t, contour_t
 from .poly import poly_contains_points
-from .clipper import union_nonzero, union_evenodd, intersection_evenodd, hier2oriented
+from .clipper import union_nonzero, union_evenodd, intersection_evenodd, difference_evenodd, hier2oriented
 from .tracker import NetsInfo, NetName
 from .utils import connectivity2layers
 
@@ -321,6 +321,7 @@ def find_merge_pairs(
             if via_polys is not None:
                 top_bot = intersection_evenodd(top_polys, bot_polys)
                 overlap = intersection_evenodd(top_bot, via_polys)
+                via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
             else:
                 overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
 
