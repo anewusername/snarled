@@ -57,7 +57,7 @@ def prepare_cell(
             )
 
         polygonized = subset.polygonize()       # Polygonize Path shapes
-        flat = polgonized.flatten()
+        flat = polygonized.flatten()
 
         # load polygons
         polys = []
