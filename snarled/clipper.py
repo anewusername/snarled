@@ -6,7 +6,7 @@ from typing import Sequence, Optional, List
 from numpy.typing import ArrayLike
 from pyclipper import (
     Pyclipper, PT_CLIP, PT_SUBJECT, CT_UNION, CT_INTERSECTION, PFT_NONZERO, PFT_EVENODD,
-    PyPolyNode,
+    PyPolyNode, CT_DIFFERENCE,
     )
 
 from .types import contour_t
