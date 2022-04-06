@@ -317,8 +317,8 @@ def find_merge_pairs(
                 continue
 
             if via_polys is not None:
-                via_top = intersection_evenodd(top_polys, via_polys)
-                overlap = intersection_evenodd(via_top, bot_polys)
+                top_bot = intersection_evenodd(top_polys, bot_polys)
+                overlap = intersection_evenodd(top_bot, via_polys)
             else:
                 overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
 
