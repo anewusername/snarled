@@ -53,6 +53,7 @@ def prepare_cell(
             shapes_func=lambda ss: ss.layer == layer,
             labels_func=lambda ll: ll.layer in label_layers,
             subpatterns_func=lambda ss: True,
+            recursive=True,
             )
 
         flat = subset.flatten()
