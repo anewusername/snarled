@@ -41,6 +41,20 @@ def intersection_evenodd(
     return pc.Execute(CT_INTERSECTION, PFT_EVENODD, PFT_EVENODD)
 
 
+def difference_evenodd(
+        subject_shapes: Sequence[ArrayLike],
+        clip_shapes: Sequence[ArrayLike],
+        ) -> List[contour_t]:
+    if not subject_shapes:
+        return []
+    if not clip_shapes:
+        return subject_shapes
+    pc = Pyclipper()
+    pc.AddPaths(subject_shapes, PT_SUBJECT, closed=True)
+    pc.AddPaths(clip_shapes, PT_CLIP, closed=True)
+    return pc.Execute(CT_DIFFERENCE, PFT_EVENODD, PFT_EVENODD)
+
+
 def hier2oriented(polys: Sequence[PyPolyNode]) -> List[ArrayLike]:
     contours = []
     for poly in polys:
