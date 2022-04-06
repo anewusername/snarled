@@ -155,6 +155,7 @@ def trace_connectivity(
         finished_layers = loaded_layers - remaining_layers
         for layer in finished_layers:
             nets_info.prune(layer)
+            loaded_layers.remove(layer)
 
     return nets_info
 
