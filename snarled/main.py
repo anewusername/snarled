@@ -216,9 +216,6 @@ def label_polys(
     point_names = []
     nets = defaultdict(list)
 
-    if not labels:
-        return nets, merge_groups
-
     for x, y, point_name in labels:
         point_xys.append((x, y))
         point_names.append(point_name)
