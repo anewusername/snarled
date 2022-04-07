@@ -3,11 +3,16 @@ Example code for checking connectivity in a layout by using
 `snarled` and `masque`.
 """
 from pprint import pformat
+import logging
 
 from masque.file import gdsii, oasis
 
 import snarled
 import snarled.interfaces.masque
+
+
+logging.basicConfig()
+logging.getLogger('snarled').setLevel(logging.INFO)
 
 
 connectivity = [
