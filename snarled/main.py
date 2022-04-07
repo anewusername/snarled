@@ -11,7 +11,7 @@ from numpy.typing import NDArray, ArrayLike
 from pyclipper import scale_to_clipper, scale_from_clipper, PyPolyNode
 
 from .types import connectivity_t, layer_t, contour_t
-from .poly import poly_contains_points
+from .poly import poly_contains_points, intersects
 from .clipper import union_nonzero, union_evenodd, intersection_evenodd, difference_evenodd, hier2oriented
 from .tracker import NetsInfo, NetName
 from .utils import connectivity2layers
@@ -112,6 +112,7 @@ def trace_connectivity(
     nets_info = NetsInfo()
 
     for ii, (top_layer, via_layer, bot_layer) in enumerate(connectivity):
+        logger.info(f'{ii}, {top_layer}, {via_layer}, {bot_layer}')
         for metal_layer in (top_layer, bot_layer):
             if metal_layer in loaded_layers:
                 continue
@@ -142,7 +143,7 @@ def trace_connectivity(
             ))
 
         # Figure out which nets are shorted by vias, then merge them
-        merge_pairs = find_merge_pairs(nets_info.nets, top_layer, bot_layer, via_polys)
+        merge_pairs = find_merge_pairs(nets_info.nets, top_layer, bot_layer, via_polys, clipper_scale_factor)
         for net_a, net_b in merge_pairs:
             nets_info.merge(net_a, net_b)
 
@@ -286,6 +287,7 @@ def find_merge_pairs(
         top_layer: layer_t,
         bot_layer: layer_t,
         via_polys: Optional[Sequence[contour_t]],
+        clipper_scale_factor: int,
         ) -> Set[Tuple[NetName, NetName]]:
     """
     Given a collection of (possibly anonymous) nets, figure out which pairs of
@@ -325,12 +327,23 @@ def find_merge_pairs(
 
             if via_polys is not None:
                 top_bot = intersection_evenodd(top_polys, bot_polys)
-                overlap = intersection_evenodd(top_bot, via_polys)
-                via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
+                overlap = check_any_intersection(scale_from_clipper(top_bot, clipper_scale_factor),
+                                                 scale_from_clipper(via_polys, clipper_scale_factor))
+#                overlap = intersection_evenodd(top_bot, via_polys)
+#                via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
             else:
-                overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
+#                overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
+                overlap = check_any_intersection(scale_from_clipper(top_polys, clipper_scale_factor), scale_from_clipper(bot_polys, clipper_scale_factor))
 
             if overlap:
                 merge_pairs.add(name_pair)
 
     return merge_pairs
+
+
+def check_any_intersection(polys_a, polys_b) -> bool:
+    for poly_a in polys_a:
+        for poly_b in polys_b:
+            if intersects(poly_a, poly_b):
+                return True
+    return False
