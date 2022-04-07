@@ -215,6 +215,10 @@ def label_polys(
     point_xys = []
     point_names = []
     nets = defaultdict(list)
+
+    if not labels:
+        return nets, merge_groups
+
     for x, y, point_name in labels:
         point_xys.append((x, y))
         point_names.append(point_name)
@@ -263,6 +267,9 @@ def label_poly(
         All the `point_names` which correspond to points inside the polygon (but not in
         its holes).
     """
+    if not point_names:
+        return []
+
     poly_contour = scale_from_clipper(poly.Contour, clipper_scale_factor)
     inside = poly_contains_points(poly_contour, point_xys)
     for hole in poly.Childs:
