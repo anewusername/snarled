@@ -129,10 +129,10 @@ def poly_edges_intersect(
     xf1 = a_next[:, 0, None]
     yf1 = a_next[:, 1, None]
 
-    xi2 = poly_b[:, 0, None]
-    yi2 = poly_b[:, 1, None]
-    xf2 = b_next[:, 0, None]
-    yf2 = b_next[:, 1, None]
+    xi2 = poly_b[None, :, 0]
+    yi2 = poly_b[None, :, 1]
+    xf2 = b_next[None, :, 0]
+    yf2 = b_next[None, :, 1]
 
     # Perform calculation
     dxi = xi1 - xi2
