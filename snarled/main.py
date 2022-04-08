@@ -139,8 +139,8 @@ def trace_connectivity(
         # Load and union vias
         via_raw_polys, _labels = get_layer(via_layer)
         via_union = union_input_polys(scale_to_clipper(via_raw_polys, clipper_scale_factor))
-        via_polylists = scale_from_clipper(hier_to_oriented(via_union), clipper_scale_factor)
-        via_polys = [numpy.array(vv) for vv in via_polylists)
+        via_polylists = scale_from_clipper(hier2oriented(via_union), clipper_scale_factor)
+        via_polys = [numpy.array(vv) for vv in via_polylists]
 
         # Figure out which nets are shorted by vias, then merge them
         merge_pairs = find_merge_pairs(nets_info.nets, top_layer, bot_layer, via_polys, clipper_scale_factor)
