@@ -138,9 +138,9 @@ def trace_connectivity(
 
         # Load and union vias
         via_raw_polys, _labels = get_layer(via_layer)
-        via_polys = hier2oriented(union_input_polys(
-            scale_to_clipper(via_raw_polys, clipper_scale_factor)
-            ))
+        via_union = union_input_polys(scale_to_clipper(via_raw_polys, clipper_scale_factor))
+        via_polylists = scale_from_clipper(hier_to_oriented(via_union), clipper_scale_factor)
+        via_polys = [numpy.array(vv) for vv in via_polylists)
 
         # Figure out which nets are shorted by vias, then merge them
         merge_pairs = find_merge_pairs(nets_info.nets, top_layer, bot_layer, via_polys, clipper_scale_factor)
@@ -327,8 +327,8 @@ def find_merge_pairs(
 
             if via_polys is not None:
                 top_bot = intersection_evenodd(top_polys, bot_polys)
-                overlap = check_any_intersection(scale_from_clipper(top_bot, clipper_scale_factor),
-                                                 scale_from_clipper(via_polys, clipper_scale_factor))
+                descaled = scale_from_clipper(top_bot, clipper_scale_factor)
+                overlap = check_any_intersection(descaled, via_polys)
 #                overlap = intersection_evenodd(top_bot, via_polys)
 #                via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
             else:
