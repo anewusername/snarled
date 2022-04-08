@@ -4,6 +4,7 @@ Main connectivity-checking functionality for `snarled`
 from typing import Tuple, List, Dict, Set, Optional, Union, Sequence, Mapping, Callable
 from collections import defaultdict
 from pprint import pformat
+from concurrent.futures import ThreadPoolExecutor
 import logging
 
 import numpy
@@ -308,37 +309,56 @@ def find_merge_pairs(
         logger.warning(f'No vias between layers {top_layer}, {bot_layer}')
         return merge_pairs
 
-    for top_name in nets.keys():
-        top_polys = nets[top_name][top_layer]
-        if not top_polys:
-            continue
-
-        for bot_name in nets.keys():
-            if bot_name == top_name:
+    tested_pairs = set()
+    with ThreadPoolExecutor() as executor:
+        for top_name in nets.keys():
+            top_polys = nets[top_name][top_layer]
+            if not top_polys:
                 continue
 
-            name_pair: Tuple[NetName, NetName] = tuple(sorted((top_name, bot_name)))  #type: ignore
-            if name_pair in merge_pairs:
-                continue
+            for bot_name in nets.keys():
+                if bot_name == top_name:
+                    continue
 
-            bot_polys = nets[bot_name][bot_layer]
-            if not bot_polys:
-                continue
+                name_pair: Tuple[NetName, NetName] = tuple(sorted((top_name, bot_name)))  #type: ignore
+                if name_pair in tested_pairs:
+                    continue
+                tested_pairs.add(name_pair)
 
-            if via_polys is not None:
-                top_bot = intersection_evenodd(top_polys, bot_polys)
-                descaled = scale_from_clipper(top_bot, clipper_scale_factor)
-                overlap = check_any_intersection(descaled, via_polys)
-#                overlap = intersection_evenodd(top_bot, via_polys)
-#                via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
-            else:
-#                overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
-                overlap = check_any_intersection(scale_from_clipper(top_polys, clipper_scale_factor), scale_from_clipper(bot_polys, clipper_scale_factor))
+                bot_polys = nets[bot_name][bot_layer]
+                if not bot_polys:
+                    continue
 
-            if overlap:
-                merge_pairs.add(name_pair)
+                executor.submit(check_overlap, top_polys, via_polys, bot_polys, clipper_scale_factor,
+                    lambda np=name_pair: merge_pairs.add(np))
 
     return merge_pairs
+
+
+def check_overlap(
+        top_polys: Sequence[contour_t],
+        via_polys: Optional[Sequence[NDArray[numpy.float64]]],
+        bot_polys: Sequence[contour_t],
+        clipper_scale_factor: int,
+        action: Callable[[], None],
+        ) -> None:
+    """
+    Check for interaction between top and bottom polys, mediated by via polys if present.
+    """
+    if via_polys is not None:
+        top_bot = intersection_evenodd(top_polys, bot_polys)
+        descaled = scale_from_clipper(top_bot, clipper_scale_factor)
+        overlap = check_any_intersection(descaled, via_polys)
+#        overlap = intersection_evenodd(top_bot, via_polys)
+#        via_polys = difference_evenodd(via_polys, overlap)      # reduce set of via polys for future nets
+    else:
+#        overlap = intersection_evenodd(top_polys, bot_polys)  # TODO verify there aren't any suspicious corner cases for this
+        overlap = check_any_intersection(
+            scale_from_clipper(top_polys, clipper_scale_factor),
+            scale_from_clipper(bot_polys, clipper_scale_factor))
+
+    if overlap:
+        action()
 
 
 def check_any_intersection(polys_a, polys_b) -> bool:
