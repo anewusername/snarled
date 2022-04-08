@@ -87,7 +87,7 @@ def intersects(poly_a: ArrayLike, poly_b: ArrayLike) -> bool:
     max_a = poly_a.max(axis=0)
     max_b = poly_b.max(axis=0)
 
-    if ((min_a > max_b) | (min_b > max_a)).any():
+    if (min_a > max_b).any() or (min_b > max_a).any():
         return False
 
     #TODO: Check against sorted coords?
