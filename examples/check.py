@@ -5,10 +5,7 @@ Example code for checking connectivity in a layout by using
 from pprint import pformat
 import logging
 
-from masque.file import gdsii, oasis
-
 import snarled
-import snarled.interfaces.masque
 
 
 logging.basicConfig()
@@ -21,20 +18,14 @@ connectivity = [
     ((2, 0), (2, 3), (3, 0)),   #M2 to M3 (via V23)
     ]
 
+labels_map = {
+    (1, 0): (1, 0),
+    (2, 0): (2, 0),
+    (3, 0): (3, 0),
+    }
 
-#cells, props = gdsii.readfile('connectivity.gds')
-cells, props = oasis.readfile('connectivity.oas')
-topcell = cells['top']
+filename = 'connectivity.oas'
 
-get_layer = snarled.interfaces.masque.prepare_cell(topcell)
-nets_info = snarled.trace_connectivity(get_layer, connectivity)
+result = snarled.trace_layout(filename, connectivity, topcell='top', labels_map=labels_map)
 
-print('\nFinal nets:')
-print([kk for kk in sorted(nets_info.nets.keys()) if isinstance(kk.name, str)])
-
-print('\nShorted net sets:')
-for short in nets_info.get_shorted_nets():
-    print('(' + ','.join([repr(nn) for nn in sorted(list(short))]) + ')')
-
-print('\nOpen nets:')
-print(pformat(dict(nets_info.get_open_nets())))
+print('Result:\n', pformat(result))

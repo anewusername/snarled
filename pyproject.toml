@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "snarled"
+description = "CAD layout electrical connectivity checker"
+readme = "README.md"
+license = { file = "LICENSE.md" }
+authors = [
+    { name="Jan Petykiewicz", email="jan@mpxd.net" },
+    ]
+homepage = "https://mpxd.net/code/jan/snarled"
+repository = "https://mpxd.net/code/jan/snarled"
+keywords = [
+    "layout",
+    "design",
+    "CAD",
+    "EDA",
+    "electronics",
+    "photonics",
+    "IC",
+    "mask",
+    "pattern",
+    "drawing",
+    "lvs",
+    "connectivity",
+    "short",
+    "unintentional",
+    "label",
+    "schematic",
+    "verification",
+    "checking",
+    ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    ]
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "klayout~=0.28",
+    ]
+
+
+[tool.hatch.version]
+path = "snarled/__init__.py"
