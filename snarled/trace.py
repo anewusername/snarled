@@ -1,7 +1,6 @@
-from typing import Sequence, Callable
+from typing import Sequence, Iterable
 import logging
 from collections import Counter
-from dataclasses import dataclass
 from itertools import chain
 
 from klayout import db
@@ -11,83 +10,151 @@ from .types import lnum_t, layer_t
 logger = logging.getLogger(__name__)
 
 
-def get_topcell(
-        layout: db.Layout,
-        name: str | None = None,
-        ) -> db.Cell:
-    if name is None:
-        return layout.top_cell()
-    else:
-        ind = layout.cell_by_name(name)
-        return layout.cell(ind)
+class TraceAnalysis:
+    """
+    Short/Open analysis for a list of nets
+    """
 
-
-def write_net_layout(
-        l2n: db.LayoutToNetlist,
-        filepath: str,
-        layers: Sequence[lnum_t],
-        ) -> None:
-    layout = db.Layout()
-    top = layout.create_cell('top')
-    lmap = {layout.layer(*layer) for layer in layers}
-    l2n.build_all_nets(l2n.cell_mapping_into(ly, top), ly, lmap, 'net_', 'prop_', l2n.BNH_Flatten, 'circuit_')
-    layout.write(filepath)
-
-
-def merge_labels_from(
-        filepath: str,
-        into_layout: db.Layout,
-        lnum_map: dict[lnum_t, lnum_t],
-        topcell: str | None = None,
-        ) -> None:
-    layout = db.Layout()
-    lm = layout.read(filepath)
-
-    topcell_obj = get_topcell(layout, topcell)
-
-    for labels_layer, conductor_layer in lnum_map:
-        layer_ind_src = layout.layer(*labels_layer)
-        layer_ind_dst = into_layout.layer(*conductor_layer)
-
-        shapes_dst = topcell_obj.shapes(layer_ind_dst)
-        shapes_src = topcell_obj.shapes(layer_ind_src)
-        for shape in shapes_dst.each():
-            new_shape = shapes_dst.insert(shape)
-            shapes_dst.replace_prop_id(new_shape, 0)        # clear shape properties
-
-
-@dataclass
-class TraceResult:
-    shorts: list[str]
-    opens: list[str]
     nets: list[set[str]]
+    """ List of nets (connected sets of labels) """
+
+    opens: dict[str, int]
+    """ Labels which appear on 2+ disconnected nets, and the number of nets they touch """
+
+    shorts: list[set[str]]
+    """ Nets containing more than one unique label """
+
+    def __init__(
+            self,
+            nets: Sequence[Iterable[str]],
+            ) -> None:
+        """
+        Args:
+            nets: Sequence of nets. Each net is a sequence of labels
+                which were found to be electrically connected.
+        """
+
+        setnets = [set(net) for net in nets]
+
+        # Shorts contain more than one label
+        shorts = [net for net in setnets if len(net) > 1]
+
+        # Check number of times each label appears
+        net_occurences = Counter(chain.from_iterable(setnets))
+
+        # Opens are where the same label appears on more than one net
+        opens = {
+            nn: count
+            for nn, count in net_occurences.items()
+            if count > 1
+            }
+
+        self.nets = setnets
+        self.shorts = shorts
+        self.opens = opens
+
+    def __repr__(self) -> str:
+        def format_net(net: Iterable[str]) -> str:
+            names = [f"'{name}'" if any(cc in name for cc in ' \t\n') else name for name in sorted(net)]
+            return ','.join(names)
+
+        def sort_nets(nets: Sequence[Iterable[str]]) -> list[Iterable[str]]:
+            return sorted(nets, key=lambda net: ','.join(sorted(net)))
+
+        ss = 'Trace analysis'
+        ss += '\n============='
+
+        ss += '\nNets'
+        ss += '\n(groups of electrically connected labels)\n'
+        for net in sort_nets(self.nets):
+            ss += '\t' + format_net(net) + '\n'
+
+        ss += '\nOpens'
+        ss += '\n(2+ nets containing the same name)\n'
+        for label, count in sorted(self.opens.items()):
+            ss += f'\t{label} : {count} nets\n'
+
+        ss += '\nShorts'
+        ss += '\n(2+ unique names for the same net)\n'
+        for net in sort_nets(self.shorts):
+            ss += '\t' + format_net(net) + '\n'
+
+        ss += '=============\n'
+        return ss
 
 
 def trace_layout(
         filepath: str,
-        connectivity: list[layer_t, layer_t | None, layer_t],
+        connectivity: Sequence[tuple[layer_t, layer_t | None, layer_t]],
         layer_map: dict[str, lnum_t] | None = None,
         topcell: str | None = None,
         *,
-        labels_map: dict[layer_t, layer_t] = {},
+        labels_map: dict[layer_t, layer_t] | None = None,
         lfile_path: str | None = None,
         lfile_map: dict[layer_t, layer_t] | None = None,
         lfile_layer_map: dict[str, lnum_t] | None = None,
         lfile_topcell: str | None = None,
         output_path: str | None = None,
-        parse_label: Callable[[str], str] | None = None,
-        ) -> TraceResult:
+        ) -> list[set[str]]:
+    """
+    Trace a layout to identify labeled nets.
+
+    To label a net, place a text label anywhere touching the net.
+    Labels may be mapped from a different layer, or even a different
+    layout file altogether.
+    Note: Labels must not contain commas (,)!!
+
+    Args:
+        filepath: Path to the primary layout, containing the conductor geometry
+            (and optionally also the labels)
+        connectivity: List of (conductor1, via12, conductor2) tuples,
+            which indicate that the specified layers are electrically connected
+            (conductor1 to via12 and via12 to conductor2). The middle (via) layer
+            may be `None`, in which case the outer layers are directly connected
+            at any overlap (conductor1 to conductor2).
+        layer_map: {layer_name: (layer_num, dtype_num)} translation table.
+            Should contain any strings present in `connectivity` and `labels_map`.
+            Default is an empty dict.
+        topcell: Cell name of the topcell. If `None`, it is automatically chosen.
+        labels_map: {label_layer: metal_layer} mapping, which allows labels to
+            reside on a different layer from their corresponding metals.
+            Only labels on the provided label layers are used, so
+            {metal_layer: metal_layer} entries must be explicitly specified if
+            they are desired.
+            If `None`, labels on each layer in `connectivity` are used alongside
+            that same layer's geometry ({layer: layer} for all participating
+            geometry layers)
+            Default `None`.
+        lfile_path: Path to a separate file from which labels should be merged.
+        lfile_map: {lfile_layer: primary_layer} mapping, used when merging the
+            labels into the primary layout.
+        lfile_layer_map: {layer_name: (layer_num, dtype_num)} mapping for the
+            secondary (label) file. Should contain all string keys in
+            `lfile_map`.
+            `None` reuses `layer_map` (default).
+        lfile_topcell: Cell name for the topcell in the secondary (label) file.
+            `None` automatically chooses the topcell (default).
+        output_path: If provided, outputs the final net geometry to a layout
+            at the given path. Default `None`.
+
+    Returns:
+        List of labeled nets, where each entry is a set of label strings which
+        were found on the given net.
+    """
     if layer_map is None:
         layer_map = {}
 
-    if parse_label is None:
-        def parse_label(label: str) -> str:
-            return label
+    if labels_map is None:
+        labels_map = {
+            layer: layer
+            for layer in chain(*connectivity)
+            if layer is not None
+            }
 
     layout = db.Layout()
-    lm = layout.read(filepath)
+    layout.read(filepath)
 
-    topcell_obj = get_topcell(layout, topcell)
+    topcell_obj = _get_topcell(layout, topcell)
 
     # Merge labels from a separate layout if asked
     if lfile_path:
@@ -106,7 +173,7 @@ def trace_layout(
                 lshape = layer_map[lshape]
             lnum_map[ltext] = lshape
 
-        merge_labels_from(lfile_path, layout, lnum_map, lfile_topcell)
+        _merge_labels_from(lfile_path, layout, lnum_map, lfile_topcell)
 
     #
     # Build a netlist from the layout
@@ -117,6 +184,8 @@ def trace_layout(
     # Create l2n polygon layers
     layer2polys = {}
     for layer in set(chain(*connectivity)):
+        if layer is None:
+            continue
         if isinstance(layer, str):
             layer = layer_map[layer]
         klayer = layout.layer(*layer)
@@ -143,7 +212,7 @@ def trace_layout(
             top = layer_map[top]
         if isinstance(via, str):
             via = layer_map[via]
-        if isinstance(top, str):
+        if isinstance(bot, str):
             bot = layer_map[bot]
 
         if via is None:
@@ -162,43 +231,78 @@ def trace_layout(
         l2n.connect(layer2polys[metal_layer], layer2texts[label_layer])
 
     # Get netlist
-    nle = l2n.extract_netlist()
+    l2n.extract_netlist()
     nl = l2n.netlist()
     nl.make_top_level_pins()
 
     if output_path:
-        write_net_layout(l2n, output_path, layer2polys.keys())
+        _write_net_layout(l2n, output_path, layer2polys)
 
     #
-    # Analyze traced nets
+    # Return merged nets
     #
     top_circuits = [cc for cc, _ in zip(nl.each_circuit_top_down(), range(nl.top_circuit_count()))]
 
     # Nets with more than one label get their labels joined with a comma
-    nets = [
-        {parse_label(ll) for ll in nn.name.split(',')}
+    nets  = [
+        set(nn.name.split(','))
         for cc in top_circuits
         for nn in cc.each_net()
         if nn.name
         ]
-    nets2 = [
-        nn.name
-        for cc in top_circuits
-        for nn in cc.each_net()
-        ]
-    print(nets2)
+    return nets
 
-    # Shorts contain more than one label
-    shorts = [net for net in nets if len(net) > 1]
 
-    # Check number of times each label appears
-    net_occurences = Counter(chain.from_iterable(nets))
+def _get_topcell(
+        layout: db.Layout,
+        name: str | None = None,
+        ) -> db.Cell:
+    """
+    Get the topcell by name or hierarchy.
 
-    # If the same label appears on more than one net, warn about an open
-    opens = [
-        (nn, count)
-        for nn, count in net_occurences.items()
-        if count > 1
-        ]
+    Args:
+        layout: Layout to get the cell from
+        name: If given, use the name to find the topcell; otherwise use hierarchy.
 
-    return TraceResult(shorts=shorts, opens=opens, nets=nets)
+    Returns:
+        Cell object
+    """
+    if name is None:
+        return layout.top_cell()
+    else:
+        ind = layout.cell_by_name(name)
+        return layout.cell(ind)
+
+
+def _write_net_layout(
+        l2n: db.LayoutToNetlist,
+        filepath: str,
+        layer2polys: dict[lnum_t, db.Region],
+        ) -> None:
+    layout = db.Layout()
+    top = layout.create_cell('top')
+    lmap = {layout.layer(*layer): polys for layer, polys in layer2polys.items()}
+    l2n.build_all_nets(l2n.cell_mapping_into(layout, top), layout, lmap, 'net_', 'prop_', l2n.BNH_Flatten, 'circuit_')
+    layout.write(filepath)
+
+
+def _merge_labels_from(
+        filepath: str,
+        into_layout: db.Layout,
+        lnum_map: dict[lnum_t, lnum_t],
+        topcell: str | None = None,
+        ) -> None:
+    layout = db.Layout()
+    layout.read(filepath)
+
+    topcell_obj = _get_topcell(layout, topcell)
+
+    for labels_layer, conductor_layer in lnum_map:
+        layer_ind_src = layout.layer(*labels_layer)
+        layer_ind_dst = into_layout.layer(*conductor_layer)
+
+        shapes_dst = topcell_obj.shapes(layer_ind_dst)
+        shapes_src = topcell_obj.shapes(layer_ind_src)
+        for shape in shapes_src.each():
+            new_shape = shapes_dst.insert(shape)
+            shapes_dst.replace_prop_id(new_shape, 0)        # clear shape properties

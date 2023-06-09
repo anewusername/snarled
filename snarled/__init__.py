@@ -12,7 +12,7 @@ has deprived the man of a schematic and a better connectivity tool.
 The main functionality is in `trace`.
 `__main__.py` details the command-line interface.
 """
-from .trace import TraceResult, trace_layout
+from .trace import trace_layout, TraceAnalysis
 
 __author__ = 'Jan Petykiewicz'
 __version__ = '1.0'

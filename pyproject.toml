@@ -51,3 +51,6 @@ dependencies = [
 
 [tool.hatch.version]
 path = "snarled/__init__.py"
+
+[project.scripts]
+snarled = "snarled.main:main"
