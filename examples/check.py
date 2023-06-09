@@ -30,4 +30,5 @@ filename = 'connectivity.oas'
 nets = snarled.trace_layout(filename, connectivity, topcell='top', labels_map=labels_map)
 result = snarled.TraceAnalysis(nets)
 
-print('Result:\n', pformat(result))
+print('\n')
+print(result)

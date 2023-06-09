@@ -74,6 +74,7 @@ def main() -> int:
 
     parsed_nets = [{parse_label(ll) for ll in net} for net in nets]
     result = TraceAnalysis(parsed_nets)
+    print('\n')
     print(result)
 
     return 0
