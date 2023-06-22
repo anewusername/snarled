@@ -179,7 +179,7 @@ def trace_layout(
                 lshape = layer_map[lshape]
             lnum_map[ltext] = lshape
 
-        _merge_labels_from(lfile_path, layout, lnum_map, lfile_topcell)
+        _merge_labels_from(lfile_path, layout, topcell_obj, lnum_map, lfile_topcell)
 
     #
     # Build a netlist from the layout
@@ -295,6 +295,7 @@ def _write_net_layout(
 def _merge_labels_from(
         filepath: str,
         into_layout: db.Layout,
+        into_cell: db.Cell,
         lnum_map: dict[lnum_t, lnum_t],
         topcell: str | None = None,
         ) -> None:
@@ -303,12 +304,12 @@ def _merge_labels_from(
 
     topcell_obj = _get_topcell(layout, topcell)
 
-    for labels_layer, conductor_layer in lnum_map:
+    for labels_layer, conductor_layer in lnum_map.items():
         layer_ind_src = layout.layer(*labels_layer)
         layer_ind_dst = into_layout.layer(*conductor_layer)
 
         shapes_dst = topcell_obj.shapes(layer_ind_dst)
-        shapes_src = topcell_obj.shapes(layer_ind_src)
+        shapes_src = into_cell.shapes(layer_ind_src)
         for shape in shapes_src.each():
             new_shape = shapes_dst.insert(shape)
             shapes_dst.replace_prop_id(new_shape, 0)        # clear shape properties
