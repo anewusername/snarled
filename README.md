@@ -16,101 +16,98 @@ has deprived the man of both a schematic and a better connectivity tool.
 Requirements:
 * python >= 3.9 (written and tested with 3.10)
 * numpy
-* pyclipper
+* klayout (python package only)
 
 
 Install with pip:
 ```bash
-pip3 install snarled
+pip install snarled
 ```
 
 Alternatively, install from git
 ```bash
-pip3 install git+https://mpxd.net/code/jan/snarled.git@release
+pip install git+https://mpxd.net/code/jan/snarled.git@release
 ```
 
 ## Example
-See `examples/check.py`. Note that the example uses `masque` to load data.
+See `examples/check.py` (python interface) or `examples/run.sh` (command-line interface).
 
+Command line:
+```bash
+snarled connectivity.oas connectivity.txt -m layermap.txt
+```
+
+Python interface:
 ```python3
 from pprint import pformat
-from masque.file import gdsii, oasis
-import snarled
-import snarled.interfaces.masque
+import logging
 
-# Layer definitions
-connectivity = {
-    ((1, 0), (1, 2), (2, 0)),   #M1 to M2 (via V12)
-    ((1, 0), (1, 3), (3, 0)),   #M1 to M3 (via V13)
-    ((2, 0), (2, 3), (3, 0)),   #M2 to M3 (via V23)
+import snarled
+from snarled.types import layer_t
+
+
+logging.basicConfig()
+logging.getLogger('snarled').setLevel(logging.INFO)
+
+
+connectivity = [
+    ((1, 0), (1, 2), (2, 0)),   # M1 to M2 (via V12)
+    ((1, 0), (1, 3), (3, 0)),   # M1 to M3 (via V13)
+    ((2, 0), (2, 3), (3, 0)),   # M2 to M3 (via V23)
+    ]
+
+labels_map: dict[layer_t, layer_t] = {
+    (1, 0): (1, 0),
+    (2, 0): (2, 0),
+    (3, 0): (3, 0),
     }
 
+filename = 'connectivity.oas'
 
-cells, props = oasis.readfile('connectivity.oas')
-topcell = cells['top']
+nets = snarled.trace_layout(filename, connectivity, topcell='top', labels_map=labels_map)
+result = snarled.TraceAnalysis(nets)
 
-polys, labels = snarled.interfaces.masque.read_cell(topcell, connectivity)
-nets_info = snarled.trace_connectivity(polys, labels, connectivity)
-
-print('\nFinal nets:')
-print([kk for kk in nets_info.nets if isinstance(kk.name, str)])
-
-print('\nShorted net sets:')
-for short in nets_info.get_shorted_nets():
-    print('(' + ','.join([repr(nn) for nn in sorted(list(short))]) + ')')
-
-print('\nOpen nets:')
-print(pformat(dict(nets_info.get_open_nets())))
+print('\n')
+print(result)
 ```
 
 this prints the following:
 
 ```
-Nets ['SignalD', 'SignalI'] are shorted on layer (1, 0) in poly:
- [[13000.0, -3000.0],
- [16000.0, -3000.0],
- [16000.0, -1000.0],
- [13000.0, -1000.0],
- [13000.0, 2000.0],
- [12000.0, 2000.0],
- [12000.0, -1000.0],
- [11000.0, -1000.0],
- [11000.0, -3000.0],
- [12000.0, -3000.0],
- [12000.0, -8000.0],
- [13000.0, -8000.0]]
-Nets ['SignalK', 'SignalK'] are shorted on layer (1, 0) in poly:
- [[18500.0, -8500.0], [28200.0, -8500.0], [28200.0, 1000.0], [18500.0, 1000.0]]
-Nets ['SignalC', 'SignalC'] are shorted on layer (1, 0) in poly:
- [[10200.0, 0.0], [-1100.0, 0.0], [-1100.0, -1000.0], [10200.0, -1000.0]]
-Nets ['SignalG', 'SignalH'] are shorted on layer (1, 0) in poly:
- [[10100.0, -2000.0], [5100.0, -2000.0], [5100.0, -3000.0], [10100.0, -3000.0]]
+INFO:snarled.trace:Adding layer (3, 0)
+INFO:snarled.trace:Adding layer (2, 3)
+INFO:snarled.trace:Adding layer (1, 3)
+INFO:snarled.trace:Adding layer (1, 2)
+INFO:snarled.trace:Adding layer (1, 0)
+INFO:snarled.trace:Adding layer (2, 0)
 
-Final nets:
-[SignalA, SignalC__0, SignalE, SignalG, SignalK__0, SignalK__2, SignalL]
 
-Shorted net sets:
-(SignalC__0,SignalC__1,SignalD,SignalI)
-(SignalK__0,SignalK__1)
-(SignalG,SignalH)
-(SignalA,SignalB)
-(SignalE,SignalF)
+Trace analysis
+=============
+Nets
+(groups of electrically connected labels)
+        SignalA,SignalB
+        SignalC,SignalD,SignalI
+        SignalE,SignalF
+        SignalG,SignalH
+        SignalK
+        SignalK
+        SignalL
 
-Open nets:
-{'SignalK': [SignalK__0, SignalK__2]}
+Opens
+(2+ nets containing the same name)
+        SignalK : 2 nets
+
+Shorts
+(2+ unique names for the same net)
+        SignalA,SignalB
+        SignalC,SignalD,SignalI
+        SignalE,SignalF
+        SignalG,SignalH
+=============
 ```
 
 ## Code organization
 
-- The main functionality is in `trace_connectivity`.
-- Useful classes, namely `NetsInfo` and `NetName`, are in `snarled.tracker`.
-- `snarled.interfaces` contains helper code for interfacing with other packages.
-
-## Caveats
-
-This package is slow, dumb, and the code is ugly. There's only a basic test case.
-
-If you know what you're doing, you could probably do a much better job of it.
-
-...but you *have* heard of it :)
-
+- The primary functionality is in `trace`; specifically `trace.trace_layout()`.
+- `main` provides a command-line interface, supported by the functions in `utils`.
