@@ -14,7 +14,7 @@ has deprived the man of both a schematic and a better connectivity tool.
 ## Installation
 
 Requirements:
-* python >= 3.9 (written and tested with 3.10)
+* python >= 3.10 (written and tested with 3.11)
 * numpy
 * klayout (python package only)
 
