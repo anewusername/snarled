@@ -10,6 +10,7 @@ has deprived the man of both a schematic and a better connectivity tool.
 
 - [Source repository](https://mpxd.net/code/jan/snarled)
 - [PyPI](https://pypi.org/project/snarled)
+- [Github mirror](https://github.com/anewusername/snarled)
 
 ## Installation
 
