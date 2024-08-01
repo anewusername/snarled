@@ -5,6 +5,10 @@ from .types import layer_t
 logger = logging.getLogger(__name__)
 
 
+class SnarledError(Exception):
+    pass
+
+
 def strip_underscored_label(string: str) -> str:
     """
     If the label ends in an underscore followed by an integer, strip
@@ -50,18 +54,18 @@ def read_layermap(path: str) -> dict[str, tuple[int, int]]:
 
         for cc in '*-()':
             if cc in line:
-                raise Exception(f'Failed to read layermap on line {nn} due to special character "{cc}"')
+                raise SnarledError(f'Failed to read layermap on line {nn} due to special character "{cc}"')
 
         for cc in ':/':
             if cc not in line:
-                raise Exception(f'Failed to read layermap on line {nn}; missing "{cc}"')
+                raise SnarledError(f'Failed to read layermap on line {nn}; missing "{cc}"')
 
         try:
             layer_part, name = line.split(':')
             layer_nums = str2lnum(layer_part)
-        except Exception as err:
-            logger.error(f'Layer map read failed on line {nn}')
-            raise err
+        except Exception:
+            logger.exception(f'Layer map read failed on line {nn}')
+            raise
 
         layer_map[name.strip()] = layer_nums
 
@@ -101,7 +105,7 @@ def read_connectivity(path: str) -> list[tuple[layer_t, layer_t | None, layer_t]
         parts = line.split(',')
 
         if len(parts) not in (2, 3):
-            raise Exception(f'Too many commas in connectivity spec on line {nn}')
+            raise SnarledError(f'Too many commas in connectivity spec on line {nn}')
 
         layers = []
         for part in parts:
@@ -109,13 +113,13 @@ def read_connectivity(path: str) -> list[tuple[layer_t, layer_t | None, layer_t]
             if '/' in part:
                 try:
                     layer = str2lnum(part)
-                except Exception as err:
-                    logger.error(f'Connectivity spec read failed on line {nn}')
-                    raise err
+                except Exception:
+                    logger.exception(f'Connectivity spec read failed on line {nn}')
+                    raise
             else:
                 layer = part.strip()
                 if not layer:
-                    raise Exception(f'Empty layer in connectivity spec on line {nn}')
+                    raise SnarledError(f'Empty layer in connectivity spec on line {nn}')
             layers.append(layer)
 
         if len(layers) == 2:
@@ -156,7 +160,7 @@ def read_remap(path: str) -> dict[layer_t, layer_t]:
         parts = line.split(':')
 
         if len(parts) != 2:
-            raise Exception(f'Too many commas in layer remap spec on line {nn}')
+            raise SnarledError(f'Too many commas in layer remap spec on line {nn}')
 
         layers = []
         for part in parts:
@@ -164,13 +168,13 @@ def read_remap(path: str) -> dict[layer_t, layer_t]:
             if '/' in part:
                 try:
                     layer = str2lnum(part)
-                except Exception as err:
-                    logger.error(f'Layer remap spec read failed on line {nn}')
-                    raise err
+                except Exception:
+                    logger.exception(f'Layer remap spec read failed on line {nn}')
+                    raise
             else:
                 layer = part.strip()
                 if not layer:
-                    raise Exception(f'Empty layer in layer remap spec on line {nn}')
+                    raise SnarledError(f'Empty layer in layer remap spec on line {nn}')
             layers.append(layer)
 
         remap[layers[0]] = layers[1]

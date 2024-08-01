@@ -5,6 +5,7 @@ from itertools import chain
 
 from klayout import db
 from .types import lnum_t, layer_t
+from .utils import SnarledError
 
 
 logger = logging.getLogger(__name__)
@@ -165,8 +166,8 @@ def trace_layout(
     # Merge labels from a separate layout if asked
     if lfile_path:
         if not lfile_map:
-            raise Exception('Asked to load labels from a separate file, but no '
-                            'label layers were specified in lfile_map')
+            raise SnarledError('Asked to load labels from a separate file, but no '
+                               + 'label layers were specified in lfile_map')
 
         if lfile_layer_map is None:
             lfile_layer_map = layer_map
