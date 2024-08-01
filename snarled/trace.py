@@ -200,7 +200,7 @@ def trace_layout(
 
     # Create l2n text layers
     layer2texts = {}
-    for layer in labels_map.keys():
+    for layer in labels_map:
         if isinstance(layer, str):
             layer = layer_map[layer]
         klayer = layout.layer(*layer)
