@@ -42,10 +42,10 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
     ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
-    "klayout~=0.28",
+    "klayout~=0.29",
     ]
 
 
