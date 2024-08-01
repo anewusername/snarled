@@ -248,7 +248,7 @@ def trace_layout(
     #
     # Return merged nets
     #
-    top_circuits = [cc for cc, _ in zip(nl.each_circuit_top_down(), range(nl.top_circuit_count()))]
+    top_circuits = [cc for cc, _ in zip(nl.each_circuit_top_down(), range(nl.top_circuit_count()), strict=False)]
 
     # Nets with more than one label get their labels joined with a comma
     nets  = [
