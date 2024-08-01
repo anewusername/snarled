@@ -1,4 +1,4 @@
-from typing import Sequence, Iterable
+from collections.abc import Sequence, Iterable
 import logging
 from collections import Counter
 from itertools import chain
