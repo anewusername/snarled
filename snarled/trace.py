@@ -276,9 +276,8 @@ def _get_topcell(
     """
     if name is None:
         return layout.top_cell()
-    else:
-        ind = layout.cell_by_name(name)
-        return layout.cell(ind)
+    ind = layout.cell_by_name(name)
+    return layout.cell(ind)
 
 
 def _write_net_layout(
