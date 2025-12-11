@@ -70,21 +70,21 @@ class TraceAnalysis:
         for net in sort_nets(self.nets):
             ss += '\t' + format_net(net) + '\n'
         if not self.nets:
-            ss += '\t<NO NETS FOUND>'
+            ss += '\t<NO NETS FOUND>\n'
 
         ss += '\nOpens'
         ss += '\n(2+ nets containing the same name)\n'
         for label, count in sorted(self.opens.items()):
             ss += f'\t{label} : {count} nets\n'
         if not self.opens:
-            ss += '\t<No opens found>'
+            ss += '\t<No opens found>\n'
 
         ss += '\nShorts'
         ss += '\n(2+ unique names for the same net)\n'
         for net in sort_nets(self.shorts):
             ss += '\t' + format_net(net) + '\n'
         if not self.shorts:
-            ss += '\t<No shorts found>'
+            ss += '\t<No shorts found>\n'
 
         ss += '=============\n'
         return ss
